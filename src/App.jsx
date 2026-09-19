@@ -1,5 +1,5 @@
 import React from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import ScrollToTop from "./components/ScrollToTop";
@@ -22,6 +22,7 @@ function App() {
     <CartProvider>
       <ScrollToTop />
       <Navbar />
+
       <main>
         <Routes>
           <Route path="/" element={<Home />} />
@@ -33,17 +34,26 @@ function App() {
           <Route path="/quality" element={<Quality />} />
           <Route path="/locations" element={<Locations />} />
           <Route path="/contact" element={<Contact />} />
-         <Route
-  path="/admin/orders"
-  element={
-    <AdminProtectedRoute>
-      <AdminOrders />
-    </AdminProtectedRoute>
-  }
-/>
+
+          {/* Admin */}
+          <Route
+            path="/admin"
+            element={<Navigate to="/admin/login" replace />}
+          />
+
           <Route path="/admin/login" element={<AdminLogin />} />
+
+          <Route
+            path="/admin/orders"
+            element={
+              <AdminProtectedRoute>
+                <AdminOrders />
+              </AdminProtectedRoute>
+            }
+          />
         </Routes>
       </main>
+
       <Footer />
     </CartProvider>
   );
