@@ -11,9 +11,9 @@ import pinDown from "../assets/pindown.png";
 import cap from "../assets/cap.png";
 import cap2 from "../assets/cap2.png";
 import cap3 from "../assets/cap3.png";
+import cap4 from "../assets/cap4.png";
 
 import t1 from "../assets/t1.jpeg";
-import t2 from "../assets/t2.png";
 import t3 from "../assets/t3.png";
 import t4 from "../assets/t4.png";
 import t5 from "../assets/t5.png";
@@ -111,12 +111,12 @@ export const products = [
       {
         color: "Black",
         image: J1,
-        price: 30000,
+        price: 35000,
       },
       {
         color: "Grey",
         image: J2,
-        price: 33000,
+        price: 35000,
       },
     ],
 
@@ -129,23 +129,28 @@ export const products = [
     category: "Accessories",
     description:
       "The Haven Trucker Cap — complete your Haven look.",
-    price: 8000,
+    price: 10000,
 
     variants: [
       {
         color: "Pink",
         image: cap,
-        price: 8000,
+        price: 10000,
       },
        {
         color: "Green",
         image: cap2,
-        price: 8000,
+        price: 10000,
       },
        {
         color: "Grey",
         image: cap3,
-        price: 8000,
+        price: 10000,
+      },
+       {
+        color: "Black",
+        image: cap4,
+        price: 10000,
       },
     ],
 
@@ -194,17 +199,17 @@ export const products = [
       {
         color: "Grey",
         image: shorts,
-        price: 20000,
+        price: 24999,
       },
       {
         color: "Red",
         image: shorts,
-        price: 20000,
+        price: 24999,
       },
       {
         color: "Green",
         image: shorts,
-        price: 20000,
+        price: 24999,
       },
     ],
 

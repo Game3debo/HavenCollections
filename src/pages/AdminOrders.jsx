@@ -21,7 +21,7 @@ export default function AdminOrders() {
      const token = localStorage.getItem("havenAdminToken");
 
 const response = await fetch(
-  "http://haven-collections-blue.vercel.app/api/orders",
+  "https://haven-collections-blue.vercel.app/api/orders",
   {
     headers: {
       Authorization: `Bearer ${token}`,
@@ -56,7 +56,7 @@ const response = await fetch(
     const token = localStorage.getItem("havenAdminToken");
 
 const response = await fetch(
-  `http://haven-collections-blue.vercel.app/api/orders/${orderId}/payment`,
+  `https://haven-collections-blue.vercel.app/api/orders/${orderId}/payment`,
   {
     method: "PATCH",
     headers: {
@@ -100,7 +100,7 @@ const response = await fetch(
    const token = localStorage.getItem("havenAdminToken");
 
 const response = await fetch(
-  "http://haven-collections-blue.vercel.app/api/orders",
+  "https://haven-collections-blue.vercel.app/api/orders",
   {
     method: "DELETE",
     headers: {
@@ -127,7 +127,7 @@ const response = await fetch(
     const token = localStorage.getItem("havenAdminToken");
 
     const response = await flocalhostetch(
-      `http://:haven-collections-blue.vercel.app/orders/${orderId}/status`,
+      `https://:haven-collections-blue.vercel.app/orders/${orderId}/status`,
       {
         method: "PATCH",
         headers: {

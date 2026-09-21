@@ -3,14 +3,14 @@ import { Link } from "react-router-dom";
 import haven1 from "../assets/haven1.png";
 import haven2 from "../assets/haven2.png";
 import t1 from "../assets/t1.jpeg";
-import t2 from "../assets/t2.png";
+//import t2 from "../assets/t2.png";
 import t3 from "../assets/t3.png";
 import t4 from "../assets/t4.png";
 import shoot3 from "../assets/shoot3.png";
 
 const products = [
   [t1, "Haven Classic", "NEW DROP"],
-  [t2, "Haven 07", "SIGNATURE"],
+  //[t2, "Haven 07", "SIGNATURE"],
   [t3, "Haven Street", "LIMITED"],
   [t4, "Haven Essential", "FEATURED"],
 ];
