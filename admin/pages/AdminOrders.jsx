@@ -126,8 +126,8 @@ const response = await fetch(
   try {
     const token = localStorage.getItem("havenAdminToken");
 
-    const response = await flocalhostetch(
-      `https://:haven-collections-blue.vercel.app/orders/${orderId}/status`,
+    const response = await fetch(
+      `https://haven-collections-blue.vercel.app/api/orders/${orderId}/status`,
       {
         method: "PATCH",
         headers: {
