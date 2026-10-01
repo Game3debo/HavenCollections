@@ -8,16 +8,19 @@ const orderRoutes = require("./routes/orderRoutes");
 
 const app = express();
 
+const allowedOrigins = [
+  "https://haven-admin-five.vercel.app",
+  "https://haven-collections-ejhd.vercel.app",
+];
+
 app.use(
   cors({
-    origin: [
-      "https://haven-admin-five.vercel.app",
-      "https://haven-collections-blue.vercel.app",
-    ],
+    origin: allowedOrigins,
     methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
+
 app.use(express.json());
 
 app.get("/", (req, res) => {
@@ -28,7 +31,8 @@ app.get("/", (req, res) => {
 
 app.use("/api/products", productRoutes);
 app.use("/api/orders", orderRoutes);
-app.use("/api/auth",authRoutes)
+app.use("/api/auth", authRoutes);
+
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {

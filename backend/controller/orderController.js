@@ -1,5 +1,9 @@
 const pool = require("../config/db");
 
+
+// ======================================================
+// CREATE ORDER
+// ======================================================
 const createOrder = async (req, res) => {
   const client = await pool.connect();
 
@@ -11,62 +15,89 @@ const createOrder = async (req, res) => {
       address,
       city,
       total,
-      items
+      items,
     } = req.body;
 
-    if (!customer_name || !email || !phone || !address || !city || !total) {
+    // Validate customer information
+    if (
+      !customer_name ||
+      !email ||
+      !phone ||
+      !address ||
+      !city ||
+      total === undefined ||
+      total === null
+    ) {
       return res.status(400).json({
-        message: "Please provide all customer and order details"
+        message: "Please provide all customer and order details",
       });
     }
 
-    if (!items || !items.length) {
+    // Validate cart
+    if (!Array.isArray(items) || items.length === 0) {
       return res.status(400).json({
-        message: "Order must contain at least one item"
+        message: "Order must contain at least one item",
       });
     }
 
     await client.query("BEGIN");
 
+    // Create the main order
     const orderResult = await client.query(
       `INSERT INTO orders
-      (customer_name, email, phone, address, city, total)
-      VALUES ($1, $2, $3, $4, $5, $6)
-      RETURNING *`,
-      [
+      (
         customer_name,
         email,
         phone,
         address,
         city,
         total
+      )
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING *`,
+      [
+        customer_name.trim(),
+        email.trim().toLowerCase(),
+        phone.trim(),
+        address.trim(),
+        city.trim(),
+        total,
       ]
     );
 
     const order = orderResult.rows[0];
 
+    // Save every product in the order
     for (const item of items) {
       await client.query(
         `INSERT INTO order_items
-        (order_id, product_id, product_name, color, size, quantity, price)
+        (
+          order_id,
+          product_id,
+          product_name,
+          color,
+          size,
+          quantity,
+          price
+        )
         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [
           order.id,
           item.product_id,
           item.product_name,
-          item.color,
-          item.size,
+          item.color || null,
+          item.size || null,
           item.quantity,
-          item.price
+          item.price,
         ]
       );
     }
 
     await client.query("COMMIT");
 
-    res.status(201).json({
+    return res.status(201).json({
       message: "Order created successfully",
-      order
+      order,
     });
 
   } catch (error) {
@@ -74,9 +105,9 @@ const createOrder = async (req, res) => {
 
     console.error("ORDER ERROR:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       message: "Failed to create order",
-      error: error.message
+      error: error.message,
     });
 
   } finally {
@@ -85,10 +116,15 @@ const createOrder = async (req, res) => {
 };
 
 
+// ======================================================
+// GET ALL ORDERS - ADMIN
+// ======================================================
 const getOrders = async (req, res) => {
   try {
     const ordersResult = await pool.query(
-      "SELECT * FROM orders ORDER BY created_at DESC"
+      `SELECT *
+       FROM orders
+       ORDER BY created_at DESC`
     );
 
     const orders = [];
@@ -109,36 +145,76 @@ const getOrders = async (req, res) => {
 
       orders.push({
         ...order,
-        items: itemsResult.rows
+        items: itemsResult.rows,
       });
     }
 
-    res.json(orders);
+    return res.json(orders);
 
   } catch (error) {
     console.error("GET ORDERS ERROR:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       message: "Failed to fetch orders",
-      error: error.message
+      error: error.message,
     });
   }
 };
+
+
+// ======================================================
+// GET ONE ORDER STATUS - CUSTOMER
+// ======================================================
+const getOrderStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query(
+      `SELECT
+        id,
+        payment_status,
+        status
+       FROM orders
+       WHERE id = $1`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        message: "Order not found",
+      });
+    }
+
+    return res.json(result.rows[0]);
+
+  } catch (error) {
+    console.error("GET ORDER STATUS ERROR:", error);
+
+    return res.status(500).json({
+      message: "Failed to check order status",
+    });
+  }
+};
+
+
+// ======================================================
+// DELETE ALL ORDERS - ADMIN
+// ======================================================
 const deleteAllOrders = async (req, res) => {
   const client = await pool.connect();
 
   try {
     await client.query("BEGIN");
 
-    // Delete the order items first
+    // Delete order items first
     await client.query("DELETE FROM order_items");
 
-    // Then delete the orders
+    // Then delete orders
     await client.query("DELETE FROM orders");
 
     await client.query("COMMIT");
 
-    res.json({
+    return res.json({
       message: "All orders deleted successfully",
     });
 
@@ -147,7 +223,7 @@ const deleteAllOrders = async (req, res) => {
 
     console.error("DELETE ORDERS ERROR:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       message: "Failed to delete orders",
       error: error.message,
     });
@@ -156,13 +232,20 @@ const deleteAllOrders = async (req, res) => {
     client.release();
   }
 };
+
+
+// ======================================================
+// VERIFY PAYMENT - ADMIN
+// ======================================================
 const verifyPayment = async (req, res) => {
   try {
     const { id } = req.params;
 
     const result = await pool.query(
       `UPDATE orders
-       SET payment_status = 'PAID'
+       SET
+         payment_status = 'PAID',
+         status = 'Payment Confirmed'
        WHERE id = $1
        RETURNING *`,
       [id]
@@ -174,7 +257,7 @@ const verifyPayment = async (req, res) => {
       });
     }
 
-    res.json({
+    return res.json({
       message: "Payment verified successfully",
       order: result.rows[0],
     });
@@ -182,12 +265,17 @@ const verifyPayment = async (req, res) => {
   } catch (error) {
     console.error("VERIFY PAYMENT ERROR:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       message: "Failed to verify payment",
       error: error.message,
     });
   }
 };
+
+
+// ======================================================
+// UPDATE ORDER STATUS - ADMIN
+// ======================================================
 const updateOrderStatus = async (req, res) => {
   try {
     const { orderId } = req.params;
@@ -208,12 +296,10 @@ const updateOrderStatus = async (req, res) => {
     }
 
     const result = await pool.query(
-      `
-      UPDATE orders
-      SET status = $1
-      WHERE id = $2
-      RETURNING *
-      `,
+      `UPDATE orders
+       SET status = $1
+       WHERE id = $2
+       RETURNING *`,
       [status, orderId]
     );
 
@@ -223,22 +309,28 @@ const updateOrderStatus = async (req, res) => {
       });
     }
 
-    res.json({
+    return res.json({
       message: "Order status updated successfully",
       order: result.rows[0],
     });
+
   } catch (error) {
     console.error("UPDATE ORDER STATUS ERROR:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       message: "Failed to update order status",
     });
   }
 };
 
+
+// ======================================================
+// EXPORTS
+// ======================================================
 module.exports = {
   createOrder,
   getOrders,
+  getOrderStatus,
   deleteAllOrders,
   verifyPayment,
   updateOrderStatus,

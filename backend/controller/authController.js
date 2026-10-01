@@ -6,15 +6,17 @@ const loginAdmin = async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    // Check that both fields were provided
     if (!email || !password) {
       return res.status(400).json({
         message: "Email and password are required",
       });
     }
 
+    // Find admin by email
     const result = await pool.query(
       "SELECT * FROM admins WHERE email = $1",
-      [email]
+      [email.trim().toLowerCase()]
     );
 
     if (result.rows.length === 0) {
@@ -25,6 +27,7 @@ const loginAdmin = async (req, res) => {
 
     const admin = result.rows[0];
 
+    // Check password against the existing hashed password
     const passwordMatch = await bcrypt.compare(
       password,
       admin.password
@@ -36,6 +39,16 @@ const loginAdmin = async (req, res) => {
       });
     }
 
+    // Make sure JWT secret exists
+    if (!process.env.JWT_SECRET) {
+      console.error("JWT_SECRET is missing from environment variables");
+
+      return res.status(500).json({
+        message: "Server configuration error",
+      });
+    }
+
+    // Create admin login token
     const token = jwt.sign(
       {
         id: admin.id,
@@ -47,7 +60,7 @@ const loginAdmin = async (req, res) => {
       }
     );
 
-    res.json({
+    return res.status(200).json({
       message: "Login successful",
       token,
       admin: {
@@ -56,14 +69,16 @@ const loginAdmin = async (req, res) => {
         email: admin.email,
       },
     });
+
   } catch (error) {
     console.error("ADMIN LOGIN ERROR:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       message: "Server error during login",
     });
   }
 };
+
 const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -76,7 +91,7 @@ const registerUser = async (req, res) => {
 
     const existingUser = await pool.query(
       "SELECT * FROM users WHERE email = $1",
-      [email]
+      [email.trim().toLowerCase()]
     );
 
     if (existingUser.rows.length > 0) {
@@ -91,17 +106,22 @@ const registerUser = async (req, res) => {
       `INSERT INTO users (name, email, password)
        VALUES ($1, $2, $3)
        RETURNING id, name, email`,
-      [name, email, hashedPassword]
+      [
+        name,
+        email.trim().toLowerCase(),
+        hashedPassword,
+      ]
     );
 
-    res.status(201).json({
+    return res.status(201).json({
       message: "Account created successfully",
       user: result.rows[0],
     });
+
   } catch (error) {
     console.error("REGISTER USER ERROR:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       message: "Server error during registration",
     });
   }

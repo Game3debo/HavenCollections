@@ -5,6 +5,7 @@ const router = express.Router();
 const {
   createOrder,
   getOrders,
+  getOrderStatus,
   deleteAllOrders,
   verifyPayment,
   updateOrderStatus,
@@ -12,19 +13,32 @@ const {
 
 const protectAdmin = require("../middleware/authMiddleware");
 
-
+// CUSTOMER
+// Create a new order
 router.post("/", createOrder);
 
-router.get("/", getOrders);
+// CUSTOMER
+// Check payment/order status for one specific order
+router.get("/:id/status", getOrderStatus);
 
-router.delete("/", deleteAllOrders);
+// ADMIN
+// Get all orders
+router.get("/", protectAdmin, getOrders);
 
-router.patch("/:id/payment",  protectAdmin, verifyPayment);
+// ADMIN
+// Delete all orders
+router.delete("/", protectAdmin, deleteAllOrders);
 
+// ADMIN
+// Verify payment
+router.patch("/:id/payment", protectAdmin, verifyPayment);
+
+// ADMIN
+// Update delivery/order status
 router.patch(
   "/:orderId/status",
   protectAdmin,
   updateOrderStatus
 );
-module.exports = router;
 
+module.exports = router;

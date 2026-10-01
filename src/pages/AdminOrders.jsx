@@ -1,165 +1,272 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+
+const API_URL = "https://havenbackend-eight.vercel.app/api";
 
 export default function AdminOrders() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const navigate = useNavigate();
-  const handleLogout = () => {
-  localStorage.removeItem("havenAdminToken");
-  localStorage.removeItem("havenAdmin");
 
-  navigate("/admin/login");
-};
+  const getToken = () => {
+    return localStorage.getItem("havenAdminToken");
+  };
+
+  const logout = () => {
+    localStorage.removeItem("havenAdminToken");
+    localStorage.removeItem("havenAdmin");
+    window.location.href = "/admin/login";
+  };
+
+  const handleUnauthorized = () => {
+    localStorage.removeItem("havenAdminToken");
+    localStorage.removeItem("havenAdmin");
+    window.location.href = "/admin/login";
+  };
 
   const fetchOrders = async () => {
+    setLoading(true);
+    setError("");
+    setMessage("");
+
     try {
-      setLoading(true);
-      setError("");
+      const token = getToken();
 
-     const token = localStorage.getItem("havenAdminToken");
+      if (!token) {
+        handleUnauthorized();
+        return;
+      }
 
-const response = await fetch(
-  "https://havenbackend-eight.vercel.app/api/orders",
-  {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  }
-);
+      const response = await fetch(`${API_URL}/orders`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch orders");
+      if (response.status === 401 || response.status === 403) {
+        handleUnauthorized();
+        return;
       }
 
       const data = await response.json();
 
-      setOrders(data);
-    } catch (err) {
-      console.error("FETCH ORDERS ERROR:", err);
-      setError("Unable to load orders. Please check your backend.");
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Failed to fetch orders"
+        );
+      }
+
+      setOrders(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("FETCH ORDERS ERROR:", error);
+
+      setError(
+        error.message ||
+          "Unable to load orders."
+      );
     } finally {
       setLoading(false);
     }
   };
+
   const verifyPayment = async (orderId) => {
-  const confirmed = window.confirm(
-    "Have you checked the Moniepoint transfer and confirmed that this payment was received?"
-  );
+    setError("");
+    setMessage("");
 
-  if (!confirmed) {
-    return;
-  }
+    try {
+      const token = getToken();
 
-  try {
-    const token = localStorage.getItem("havenAdminToken");
-
-const response = await fetch(
-  `https://havenbackend-eight.vercel.app/api/orders/${orderId}/payment`,
-  {
-    method: "PATCH",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  }
-);
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.message || "Failed to verify payment");
-    }
-
-    setOrders((currentOrders) =>
-      currentOrders.map((order) =>
-        order.id === orderId
-          ? { ...order, payment_status: "PAID" }
-          : order
-      )
-    );
-
-    alert("Payment verified successfully.");
-
-  } catch (error) {
-    console.error("VERIFY PAYMENT ERROR:", error);
-
-    alert("Something went wrong while verifying payment.");
-  }
-};
-  const clearAllOrders = async () => {
-  const confirmed = window.confirm(
-    "Are you sure you want to delete ALL orders? This cannot be undone."
-  );
-
-  if (!confirmed) {
-    return;
-  }
-
-  try {
-   const token = localStorage.getItem("havenAdminToken");
-
-const response = await fetch(
-  "https://havenbackend-eight.vercel.app/api/orders",
-  {
-    method: "DELETE",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  }
-);
-    if (!response.ok) {
-      throw new Error("Failed to delete orders");
-    }
-
-    alert("All orders have been cleared.");
-
-    setOrders([]);
-
-  } catch (error) {
-    console.error("CLEAR ORDERS ERROR:", error);
-
-    alert("Something went wrong while clearing orders.");
-  }
-};
- const updateStatus = async (orderId, status) => {
-  try {
-    const token = localStorage.getItem("havenAdminToken");
-
-    const response = await fetch(
-      `https://havenbackend-eight.vercel.app/api/orders/${orderId}/status`,
-      {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ status }),
+      if (!token) {
+        handleUnauthorized();
+        return;
       }
+
+      const response = await fetch(
+        `${API_URL}/orders/${orderId}/payment`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.status === 401 || response.status === 403) {
+        handleUnauthorized();
+        return;
+      }
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Failed to verify payment"
+        );
+      }
+
+      setOrders((previousOrders) =>
+        previousOrders.map((order) =>
+          String(order.id) === String(orderId)
+            ? {
+                ...order,
+                payment_status: "PAID",
+                status: "Payment Confirmed",
+              }
+            : order
+        )
+      );
+
+      setMessage(
+        `Payment verified for order HVN-${orderId}.`
+      );
+    } catch (error) {
+      console.error(
+        "VERIFY PAYMENT ERROR:",
+        error
+      );
+
+      setError(
+        error.message ||
+          "Failed to verify payment."
+      );
+    }
+  };
+
+  const updateOrderStatus = async (
+    orderId,
+    status
+  ) => {
+    setError("");
+    setMessage("");
+
+    try {
+      const token = getToken();
+
+      if (!token) {
+        handleUnauthorized();
+        return;
+      }
+
+      const response = await fetch(
+        `${API_URL}/orders/${orderId}/status`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            status,
+          }),
+        }
+      );
+
+      if (response.status === 401 || response.status === 403) {
+        handleUnauthorized();
+        return;
+      }
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message ||
+            "Failed to update order status"
+        );
+      }
+
+      setOrders((previousOrders) =>
+        previousOrders.map((order) =>
+          String(order.id) === String(orderId)
+            ? {
+                ...order,
+                status: status,
+              }
+            : order
+        )
+      );
+
+      setMessage(
+        `Order HVN-${orderId} updated to ${status}.`
+      );
+    } catch (error) {
+      console.error(
+        "UPDATE STATUS ERROR:",
+        error
+      );
+
+      setError(
+        error.message ||
+          "Failed to update order status."
+      );
+    }
+  };
+
+  const deleteAllOrders = async () => {
+    const confirmed = window.confirm(
+      "Are you sure you want to delete ALL orders?"
     );
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.message || "Failed to update status");
+    if (!confirmed) {
+      return;
     }
 
-    alert("Order status updated successfully!");
+    setError("");
+    setMessage("");
 
-    fetchOrders();
-  } catch (error) {
-    console.error("STATUS UPDATE ERROR:", error);
-    alert(error.message || "Something went wrong.");
-  }
-};
+    try {
+      const token = getToken();
+
+      if (!token) {
+        handleUnauthorized();
+        return;
+      }
+
+      const response = await fetch(
+        `${API_URL}/orders`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.status === 401 || response.status === 403) {
+        handleUnauthorized();
+        return;
+      }
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message ||
+            "Failed to delete orders"
+        );
+      }
+
+      setOrders([]);
+      setMessage(
+        "All orders have been deleted."
+      );
+    } catch (error) {
+      console.error(
+        "DELETE ORDERS ERROR:",
+        error
+      );
+
+      setError(
+        error.message ||
+          "Failed to delete orders."
+      );
+    }
+  };
 
   useEffect(() => {
     fetchOrders();
   }, []);
-
-  const formatPrice = (price) => {
-    return `₦${Number(price || 0).toLocaleString()}`;
-  };
 
   if (loading) {
     return (
@@ -171,270 +278,322 @@ const response = await fetch(
     );
   }
 
-  if (error) {
-    return (
-      <div style={styles.page}>
-        <div style={styles.error}>
-          <h2>Something went wrong</h2>
-          <p>{error}</p>
-
-          <button onClick={fetchOrders} style={styles.retryButton}>
-            Try Again
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div style={styles.page}>
-      <div style={styles.header}>
-        <div>
-          
-          <p style={styles.smallTitle}>HAVEN ADMIN</p>
-          <h1 style={styles.title}>Orders</h1>
-          <p style={styles.subtitle}>
-            View and manage customer orders.
-          </p>
-          <button onClick={handleLogout}>
-  LOGOUT
-</button>
+      <div style={styles.container}>
+
+        <header style={styles.header}>
+          <div>
+            <h1 style={styles.title}>
+              Haven Orders
+            </h1>
+
+            <p style={styles.subtitle}>
+              Manage customer orders,
+              payments and deliveries.
+            </p>
+          </div>
+
+          <div style={styles.headerButtons}>
+            <button
+              type="button"
+              onClick={fetchOrders}
+              style={styles.refreshButton}
+            >
+              REFRESH
+            </button>
+
+            <button
+              type="button"
+              onClick={logout}
+              style={styles.logoutButton}
+            >
+              LOG OUT
+            </button>
+          </div>
+        </header>
+
+        <div style={styles.actions}>
+          <strong>
+            {orders.length}{" "}
+            {orders.length === 1
+              ? "Order"
+              : "Orders"}
+          </strong>
+
+          {orders.length > 0 && (
+            <button
+              type="button"
+              onClick={deleteAllOrders}
+              style={styles.deleteButton}
+            >
+              DELETE ALL ORDERS
+            </button>
+          )}
         </div>
 
-       <div style={styles.buttonGroup}>
+        {message && (
+          <div style={styles.success}>
+            {message}
+          </div>
+        )}
 
-  <button onClick={fetchOrders} style={styles.refreshButton}>
-    ↻ Refresh Orders
-  </button>
+        {error && (
+          <div style={styles.error}>
+            {error}
+          </div>
+        )}
 
-  <button onClick={clearAllOrders} style={styles.clearButton}>
-    🗑 Clear All Orders
-  </button>
+        {orders.length === 0 ? (
+          <div style={styles.empty}>
+            <h2>No orders yet</h2>
+            <p>
+              Customer orders will appear here
+              after checkout.
+            </p>
+          </div>
+        ) : (
+          <div style={styles.orders}>
+            {orders.map((order) => (
+              <div
+                key={order.id}
+                style={styles.orderCard}
+              >
+                <div style={styles.orderHeader}>
+                  <div>
+                    <h2 style={styles.orderNumber}>
+                      HVN-{order.id}
+                    </h2>
 
-</div>
+                    <p style={styles.date}>
+                      {order.created_at
+                        ? new Date(
+                            order.created_at
+                          ).toLocaleString()
+                        : ""}
+                    </p>
+                  </div>
+
+                  <div style={styles.statusArea}>
+                    <span
+                      style={{
+                        ...styles.paymentBadge,
+                        background:
+                          order.payment_status ===
+                          "PAID"
+                            ? "#e8f8ed"
+                            : "#fff4d6",
+                        color:
+                          order.payment_status ===
+                          "PAID"
+                            ? "#16803c"
+                            : "#996c00",
+                      }}
+                    >
+                      {order.payment_status ||
+                        "PENDING"}
+                    </span>
+
+                    <span style={styles.statusBadge}>
+                      {order.status ||
+                        "Payment Pending"}
+                    </span>
+                  </div>
+                </div>
+
+                <div style={styles.section}>
+                  <h3>
+                    CUSTOMER
+                  </h3>
+
+                  <p>
+                    <strong>
+                      Name:
+                    </strong>{" "}
+                    {order.customer_name}
+                  </p>
+
+                  <p>
+                    <strong>
+                      Email:
+                    </strong>{" "}
+                    {order.email}
+                  </p>
+
+                  <p>
+                    <strong>
+                      Phone:
+                    </strong>{" "}
+                    {order.phone}
+                  </p>
+                </div>
+
+                <div style={styles.section}>
+                  <h3>
+                    DELIVERY
+                  </h3>
+
+                  <p>
+                    <strong>
+                      Address:
+                    </strong>{" "}
+                    {order.address}
+                  </p>
+
+                  <p>
+                    <strong>
+                      City:
+                    </strong>{" "}
+                    {order.city}
+                  </p>
+                </div>
+
+                <div style={styles.section}>
+                  <h3>
+                    ITEMS
+                  </h3>
+
+                  {order.items &&
+                  order.items.length > 0 ? (
+                    <div>
+                      {order.items.map(
+                        (item, index) => (
+                          <div
+                            key={`${order.id}-${index}`}
+                            style={
+                              styles.item
+                            }
+                          >
+                            <div>
+                              <strong>
+                                {
+                                  item.product_name
+                                }
+                              </strong>
+
+                              <div
+                                style={
+                                  styles.itemDetails
+                                }
+                              >
+                                {item.color && (
+                                  <span>
+                                    Color:{" "}
+                                    {
+                                      item.color
+                                    }
+                                  </span>
+                                )}
+
+                                {item.size && (
+                                  <span>
+                                    Size:{" "}
+                                    {
+                                      item.size
+                                    }
+                                  </span>
+                                )}
+
+                                <span>
+                                  Qty:{" "}
+                                  {
+                                    item.quantity
+                                  }
+                                </span>
+                              </div>
+                            </div>
+
+                            <strong>
+                              ₦
+                              {Number(
+                                item.price *
+                                  item.quantity
+                              ).toLocaleString()}
+                            </strong>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  ) : (
+                    <p>
+                      No items found.
+                    </p>
+                  )}
+                </div>
+
+                <div style={styles.total}>
+                  <span>
+                    TOTAL
+                  </span>
+
+                  <strong>
+                    ₦
+                    {Number(
+                      order.total
+                    ).toLocaleString()}
+                  </strong>
+                </div>
+
+                <div style={styles.controls}>
+
+                  {order.payment_status !==
+                    "PAID" && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        verifyPayment(
+                          order.id
+                        )
+                      }
+                      style={
+                        styles.verifyButton
+                      }
+                    >
+                      VERIFY PAYMENT
+                    </button>
+                  )}
+
+                  <select
+                    value={
+                      order.status ||
+                      "Payment Pending"
+                    }
+                    onChange={(e) =>
+                      updateOrderStatus(
+                        order.id,
+                        e.target.value
+                      )
+                    }
+                    style={styles.select}
+                  >
+                    <option>
+                      Payment Pending
+                    </option>
+
+                    <option>
+                      Payment Confirmed
+                    </option>
+
+                    <option>
+                      Processing
+                    </option>
+
+                    <option>
+                      Shipped
+                    </option>
+
+                    <option>
+                      Delivered
+                    </option>
+                  </select>
+
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
       </div>
-
-      <div style={styles.summary}>
-        <div style={styles.summaryCard}>
-          <span>Total Orders: </span>
-          <strong>{orders.length}</strong>
-        </div>
-      </div>
-
-      {orders.length === 0 ? (
-        <div style={styles.empty}>
-          <h2>No orders yet</h2>
-          <p>Customer orders will appear here once they place an order.</p>
-        </div>
-      ) : (
-        <div style={styles.ordersContainer}>
-          {orders.map((order) => (
-            <div key={order.id} style={styles.orderCard}>
-              <div style={{ marginTop: "15px" }}>
-  <strong>Order Status:</strong>
-
-  <select
-    value={order.status || "Payment Pending"}
-    onChange={(e) =>
-      updateStatus(order.id, e.target.value)
-    }
-    style={{
-      marginLeft: "10px",
-      padding: "8px",
-      borderRadius: "6px",
-      border: "1px solid #ddd",
-    }}
-  >
-    <option value="Payment Pending">
-      Payment Pending
-    </option>
-
-    <option value="Payment Confirmed">
-      Payment Confirmed
-    </option>
-
-    <option value="Processing">
-      Processing
-    </option>
-
-    <option value="Shipped">
-      Shipped
-    </option>
-
-    <option value="Delivered">
-      Delivered
-    </option>
-  </select>
-</div>
-              {/* ORDER HEADER */}
-              <div style={styles.orderHeader}>
-                <div>
-                  <span style={styles.orderLabel}>ORDER</span>
-                  <h2 style={styles.orderId}>
-                    #{order.id}
-                  </h2>
-                </div>
-
-                <div style={styles.date}>
-                  {order.created_at
-                    ? new Date(order.created_at).toLocaleString()
-                    : "Date unavailable"}
-                </div>
-              </div>
-
-              {/* CUSTOMER INFORMATION */}
-              <div style={styles.section}>
-                <h3 style={styles.sectionTitle}>
-                  Customer Information
-                </h3>
-
-                <div style={styles.infoGrid}>
-                  <div>
-                    <span style={styles.label}>Name</span>
-                    <p>{order.customer_name || "—"}</p>
-                  </div>
-
-                  <div>
-                    <span style={styles.label}>Email</span>
-                    <p>{order.email || "—"}</p>
-                  </div>
-
-                  <div>
-                    <span style={styles.label}>Phone</span>
-                    <p>{order.phone || "—"}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* DELIVERY INFORMATION */}
-              <div style={styles.section}>
-                <h3 style={styles.sectionTitle}>
-                  Delivery Information
-                </h3>
-
-                <div style={styles.infoGrid}>
-                  <div>
-                    <span style={styles.label}>Address</span>
-                    <p>{order.address || "—"}</p>
-                  </div>
-
-                  <div>
-                    <span style={styles.label}>City</span>
-                    <p>{order.city || "—"}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* PRODUCTS */}
-              <div style={styles.section}>
-                <h3 style={styles.sectionTitle}>
-                  Order Items
-                </h3>
-
-                {order.items && order.items.length > 0 ? (
-                  <div style={styles.itemsContainer}>
-                    {order.items.map((item, index) => (
-                      <div
-                        key={index}
-                        style={styles.item}
-                      >
-                        <div style={styles.itemMain}>
-                          <h4>
-                            {item.product_name || "Product"}
-                          </h4>
-
-                          <p>
-                            Product ID:{" "}
-                            {item.product_id || "—"}
-                          </p>
-                        </div>
-
-                        <div style={styles.itemDetails}>
-                          <div>
-                            <span style={styles.label}>
-                              Color
-                            </span>
-                            <strong>
-                              {item.color || "—"}
-                            </strong>
-                          </div>
-
-                          <div>
-                            <span style={styles.label}>
-                              Size
-                            </span>
-                            <strong>
-                              {item.size || "—"}
-                            </strong>
-                          </div>
-
-                          <div>
-                            <span style={styles.label}>
-                              Quantity
-                            </span>
-                            <strong>
-                              {item.quantity || 0}
-                            </strong>
-                          </div>
-
-                          <div>
-                            <span style={styles.label}>
-                              Price
-                            </span>
-                            <strong>
-                              {formatPrice(item.price)}
-                            </strong>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p>No items found for this order.</p>
-                )}
-              </div>
-
-              {/* TOTAL */}
-              <div style={styles.totalSection}>
-                <span>Total Amount</span>
-
-                <strong>
-                  {formatPrice(order.total)}
-                </strong>
-              </div>
-              {/* PAYMENT STATUS */}
-<div style={styles.paymentSection}>
-  <div>
-    <span style={styles.label}>Payment Status</span>
-
-    <strong
-      style={{
-        color:
-          order.payment_status === "PAID"
-            ? "green"
-            : "#d71920",
-      }}
-    >
-      {order.payment_status === "PAID"
-        ? "✓ PAID"
-        : "PENDING VERIFICATION"}
-    </strong>
-  </div>
-
-  {order.payment_status !== "PAID" && (
-    <button
-      onClick={() => verifyPayment(order.id)}
-      style={styles.verifyButton}
-    >
-      VERIFY PAYMENT
-    </button>
-  )}
-</div>
-
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -443,9 +602,13 @@ const styles = {
   page: {
     minHeight: "100vh",
     background: "#f7f7f7",
-    padding: "40px 6%",
     fontFamily: "Arial, sans-serif",
-    color: "#111",
+    padding: "30px",
+  },
+
+  container: {
+    maxWidth: "1100px",
+    margin: "0 auto",
   },
 
   header: {
@@ -453,213 +616,197 @@ const styles = {
     justifyContent: "space-between",
     alignItems: "center",
     gap: "20px",
-    marginBottom: "35px",
-    flexWrap: "wrap",
-  },
-
-  smallTitle: {
-    color: "#d71920",
-    fontWeight: "700",
-    letterSpacing: "2px",
-    marginBottom: "8px",
+    marginBottom: "30px",
   },
 
   title: {
-    fontSize: "42px",
-    margin: "0",
+    margin: 0,
+    fontSize: "32px",
   },
 
   subtitle: {
-    color: "#666",
+    color: "#777",
     marginTop: "8px",
   },
 
+  headerButtons: {
+    display: "flex",
+    gap: "10px",
+  },
+
   refreshButton: {
+    border: "1px solid #ddd",
+    background: "#fff",
+    padding: "11px 16px",
+    borderRadius: "8px",
+    cursor: "pointer",
+    fontWeight: "700",
+  },
+
+  logoutButton: {
+    border: "none",
+    background: "#222",
+    color: "#fff",
+    padding: "11px 16px",
+    borderRadius: "8px",
+    cursor: "pointer",
+    fontWeight: "700",
+  },
+
+  actions: {
+    background: "#fff",
+    padding: "16px 20px",
+    borderRadius: "12px",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "20px",
+  },
+
+  deleteButton: {
     border: "none",
     background: "#d71920",
     color: "#fff",
-    padding: "13px 20px",
-    borderRadius: "8px",
+    padding: "10px 14px",
+    borderRadius: "7px",
     cursor: "pointer",
-    fontWeight: "600",
+    fontWeight: "700",
   },
 
-  summary: {
-    marginBottom: "25px",
+  success: {
+    background: "#e8f8ed",
+    color: "#16803c",
+    padding: "13px",
+    borderRadius: "8px",
+    marginBottom: "20px",
   },
 
-  summaryCard: {
+  error: {
+    background: "#fff0f0",
+    color: "#d71920",
+    padding: "13px",
+    borderRadius: "8px",
+    marginBottom: "20px",
+  },
+
+  empty: {
     background: "#fff",
-    padding: "20px",
-    borderRadius: "12px",
-    width: "220px",
-    boxShadow: "0 3px 15px rgba(0,0,0,0.06)",
+    padding: "50px",
+    borderRadius: "15px",
+    textAlign: "center",
   },
-  ordersContainer: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "25px",
+
+  loading: {
+    textAlign: "center",
+    paddingTop: "100px",
+    fontSize: "20px",
+  },
+
+  orders: {
+    display: "grid",
+    gap: "20px",
   },
 
   orderCard: {
     background: "#fff",
-    borderRadius: "16px",
-    padding: "28px",
-    boxShadow: "0 5px 25px rgba(0,0,0,0.07)",
+    borderRadius: "15px",
+    padding: "25px",
+    boxShadow: "0 5px 20px rgba(0,0,0,0.05)",
   },
 
   orderHeader: {
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "center",
+    gap: "20px",
     borderBottom: "1px solid #eee",
-    paddingBottom: "20px",
+    paddingBottom: "18px",
     marginBottom: "20px",
-    gap: "15px",
-    flexWrap: "wrap",
   },
 
-  orderLabel: {
-    fontSize: "12px",
-    color: "#888",
-    letterSpacing: "1px",
-  },
-
-  orderId: {
-    margin: "5px 0 0",
-    fontSize: "25px",
+  orderNumber: {
+    margin: 0,
   },
 
   date: {
-    color: "#777",
-    fontSize: "14px",
-  },
-
-  section: {
-    marginBottom: "25px",
-  },
-
-  sectionTitle: {
-    fontSize: "17px",
-    marginBottom: "15px",
-  },
-
-  infoGrid: {
-    display: "grid",
-    gridTemplateColumns:
-      "repeat(auto-fit, minmax(200px, 1fr))",
-    gap: "20px",
-  },
-
-  label: {
-    display: "block",
-    fontSize: "12px",
-    color: "#888",
-    marginBottom: "5px",
-  },
-
-  infoGridP: {
-    margin: 0,
-  },
-
-  item: {
-    border: "1px solid #eee",
-    borderRadius: "12px",
-    padding: "18px",
-    marginBottom: "12px",
-  },
-
-  itemMain: {
-    marginBottom: "15px",
-  },
-
-  itemMainH4: {
-    margin: 0,
-  },
-
-  itemMainP: {
     color: "#888",
     fontSize: "13px",
   },
 
-  itemDetails: {
-    display: "grid",
-    gridTemplateColumns:
-      "repeat(auto-fit, minmax(100px, 1fr))",
-    gap: "15px",
+  statusArea: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-end",
+    gap: "7px",
   },
 
-  totalSection: {
-    borderTop: "2px solid #111",
-    paddingTop: "20px",
+  paymentBadge: {
+    padding: "6px 10px",
+    borderRadius: "20px",
+    fontSize: "12px",
+    fontWeight: "700",
+  },
+
+  statusBadge: {
+    background: "#f1f1f1",
+    color: "#444",
+    padding: "6px 10px",
+    borderRadius: "20px",
+    fontSize: "12px",
+    fontWeight: "700",
+  },
+
+  section: {
+    marginBottom: "22px",
+  },
+
+  item: {
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "center",
-    fontSize: "18px",
-    marginTop: "20px",
+    gap: "20px",
+    padding: "12px 0",
+    borderBottom: "1px solid #eee",
   },
 
-  empty: {
-    background: "#fff",
-    padding: "60px 20px",
-    textAlign: "center",
-    borderRadius: "16px",
+  itemDetails: {
+    display: "flex",
+    gap: "12px",
+    color: "#777",
+    fontSize: "13px",
+    marginTop: "5px",
+    flexWrap: "wrap",
   },
 
-  loading: {
-    textAlign: "center",
-    padding: "100px 20px",
+  total: {
+    display: "flex",
+    justifyContent: "space-between",
     fontSize: "20px",
+    fontWeight: "700",
+    paddingTop: "20px",
+    borderTop: "2px solid #222",
   },
 
-  error: {
-    background: "#fff",
-    padding: "50px",
-    textAlign: "center",
-    borderRadius: "16px",
+  controls: {
+    display: "flex",
+    gap: "10px",
+    marginTop: "20px",
+    flexWrap: "wrap",
   },
 
-  retryButton: {
-    marginTop: "15px",
-    background: "#111",
-    color: "#fff",
+  verifyButton: {
     border: "none",
-    padding: "12px 20px",
+    background: "#d71920",
+    color: "#fff",
+    padding: "12px 16px",
     borderRadius: "8px",
     cursor: "pointer",
+    fontWeight: "700",
   },
-  buttonGroup: {
-  display: "flex",
-  gap: "10px",
-  flexWrap: "wrap",
-},
 
-clearButton: {
-  border: "none",
-  background: "#111",
-  color: "#fff",
-  padding: "13px 20px",
-  borderRadius: "8px",
-  cursor: "pointer",
-  fontWeight: "600",
-},
-paymentSection: {
-  marginTop: "20px",
-  paddingTop: "20px",
-  borderTop: "1px solid #eee",
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  gap: "15px",
-  flexWrap: "wrap",
-},
-verifyButton: {
-  border: "none",
-  background: "#d71920",
-  color: "#fff",
-  padding: "12px 18px",
-  borderRadius: "8px",
-  cursor: "pointer",
-  fontWeight: "600",
-},
+  select: {
+    padding: "11px",
+    border: "1px solid #ddd",
+    borderRadius: "8px",
+    background: "#fff",
+    minWidth: "190px",
+  },
 };

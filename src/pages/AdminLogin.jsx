@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+const API_URL = "https://havenbackend-eight.vercel.app/api";
+
 export default function AdminLogin() {
   const navigate = useNavigate();
 
@@ -16,37 +18,54 @@ export default function AdminLogin() {
     setLoading(true);
 
     try {
-      const response = await fetch(
-        "https://havenbackend-eight.vercel.app/api/auth/login",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email,
-            password,
-          }),
-        }
-      );
+      const response = await fetch(`${API_URL}/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: email.trim(),
+          password,
+        }),
+      });
 
-      const data = await response.json();
+      let data = {};
+
+      try {
+        data = await response.json();
+      } catch {
+        data = {};
+      }
 
       if (!response.ok) {
-        throw new Error(data.message || "Login failed");
+        throw new Error(data.message || "Invalid email or password");
+      }
+
+      if (!data.token) {
+        throw new Error("Login was successful, but no admin token was received.");
       }
 
       localStorage.setItem("havenAdminToken", data.token);
-      localStorage.setItem(
-        "havenAdmin",
-        JSON.stringify(data.admin)
-      );
+
+      if (data.admin) {
+        localStorage.setItem(
+          "havenAdmin",
+          JSON.stringify(data.admin)
+        );
+      }
 
       navigate("/admin/orders");
 
     } catch (error) {
       console.error("ADMIN LOGIN ERROR:", error);
-      setError(error.message || "Something went wrong.");
+
+      if (error instanceof TypeError) {
+        setError(
+          "Unable to connect to the Haven server. Please check your internet connection."
+        );
+      } else {
+        setError(error.message || "Something went wrong. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -81,27 +100,35 @@ export default function AdminLogin() {
         <form onSubmit={handleLogin}>
 
           <div style={styles.inputGroup}>
-            <label>Email</label>
+            <label htmlFor="admin-email">
+              Email
+            </label>
 
             <input
+              id="admin-email"
               type="email"
               placeholder="Enter admin email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              autoComplete="email"
               style={styles.input}
             />
           </div>
 
           <div style={styles.inputGroup}>
-            <label>Password</label>
+            <label htmlFor="admin-password">
+              Password
+            </label>
 
             <input
+              id="admin-password"
               type="password"
               placeholder="Enter password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              autoComplete="current-password"
               style={styles.input}
             />
           </div>
@@ -109,7 +136,11 @@ export default function AdminLogin() {
           <button
             type="submit"
             disabled={loading}
-            style={styles.button}
+            style={{
+              ...styles.button,
+              opacity: loading ? 0.7 : 1,
+              cursor: loading ? "not-allowed" : "pointer",
+            }}
           >
             {loading ? "SIGNING IN..." : "SIGN IN"}
           </button>
@@ -176,10 +207,6 @@ const styles = {
     marginBottom: "20px",
   },
 
-  inputGroupLabel: {
-    display: "block",
-  },
-
   input: {
     width: "100%",
     boxSizing: "border-box",
@@ -199,7 +226,6 @@ const styles = {
     padding: "15px",
     borderRadius: "8px",
     fontWeight: "700",
-    cursor: "pointer",
     marginTop: "10px",
     letterSpacing: "1px",
   },
