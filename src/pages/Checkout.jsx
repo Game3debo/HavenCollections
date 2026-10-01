@@ -28,9 +28,6 @@ export default function Checkout() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  // ======================================================
-  // CHECK PAYMENT STATUS
-  // ======================================================
   useEffect(() => {
     if (
       paymentStatus !== "pending_verification" ||
@@ -56,7 +53,6 @@ export default function Checkout() {
         if (data.payment_status === "PAID") {
           setPaymentStatus("paid");
         }
-
       } catch (error) {
         console.error(
           "PAYMENT STATUS CHECK ERROR:",
@@ -75,10 +71,6 @@ export default function Checkout() {
     return () => clearInterval(interval);
   }, [paymentStatus, orderId]);
 
-
-  // ======================================================
-  // EMPTY CART
-  // ======================================================
   if (
     !cart.length &&
     paymentStatus === "not_started"
@@ -101,10 +93,6 @@ export default function Checkout() {
     );
   }
 
-
-  // ======================================================
-  // FORM UPDATE
-  // ======================================================
   const update = (event) => {
     const { name, value } = event.target;
 
@@ -114,10 +102,6 @@ export default function Checkout() {
     }));
   };
 
-
-  // ======================================================
-  // COPY ACCOUNT NUMBER
-  // ======================================================
   const copyAccountNumber = async () => {
     try {
       await navigator.clipboard.writeText(
@@ -129,7 +113,6 @@ export default function Checkout() {
       setTimeout(() => {
         setCopied(false);
       }, 1800);
-
     } catch (error) {
       console.error(
         "COPY ERROR:",
@@ -140,10 +123,6 @@ export default function Checkout() {
     }
   };
 
-
-  // ======================================================
-  // SUBMIT ORDER
-  // ======================================================
   const submitOrder = async (event) => {
     event.preventDefault();
 
@@ -190,7 +169,7 @@ export default function Checkout() {
       if (!response.ok) {
         throw new Error(
           data.message ||
-          "Failed to create order"
+            "Failed to create order"
         );
       }
 
@@ -204,7 +183,6 @@ export default function Checkout() {
 
       setOrderId(`HVN-${backendOrderId}`);
       setPaymentStatus("awaiting_payment");
-
     } catch (error) {
       console.error(
         "CHECKOUT ERROR:",
@@ -213,18 +191,13 @@ export default function Checkout() {
 
       setError(
         error.message ||
-        "Something went wrong while creating your order. Please try again."
+          "Something went wrong while creating your order. Please try again."
       );
-
     } finally {
       setSubmitting(false);
     }
   };
 
-
-  // ======================================================
-  // PAYMENT SUBMITTED
-  // ======================================================
   const markPaymentSubmitted = () => {
     setPaymentStatus(
       "pending_verification"
@@ -233,188 +206,242 @@ export default function Checkout() {
     clearCart();
   };
 
-
-  // ======================================================
-  // PAYMENT CONFIRMED
-  // ======================================================
+  /*
+   * PAYMENT CONFIRMED
+   */
   if (paymentStatus === "paid") {
     return (
-      <section className="page checkout-page">
-        <div className="checkout-card">
+      <section className="page section success-page">
+        <span className="payment-success-icon">
+          ✓
+        </span>
 
-          <h1>
-            PAYMENT
-            <br />
-            <em>CONFIRMED.</em>
-          </h1>
+        <p className="red-kicker">
+          PAYMENT VERIFIED
+        </p>
 
-          <p>
-            Your payment has been verified
-            successfully.
-          </p>
+        <h2>
+          PAYMENT
+          <br />
+          <em>CONFIRMED.</em>
+        </h2>
 
-          <p>
-            Order number:
-            <strong> {orderId}</strong>
-          </p>
+        <p className="payment-copy">
+          Your payment has been verified
+          successfully. Your Haven order is now
+          being processed.
+        </p>
 
-          <p>
-            Your Haven order is now being
-            processed.
-          </p>
+        <div className="payment-receipt-mini">
+          <div>
+            <span>ORDER NUMBER</span>
+            <strong>{orderId}</strong>
+          </div>
 
-          <Link
-            className="primary-btn"
-            to="/shop"
-          >
-            CONTINUE SHOPPING ↗
-          </Link>
-
+          <div>
+            <span>AMOUNT</span>
+            <strong>
+              {formatPrice(total)}
+            </strong>
+          </div>
         </div>
+
+        <Link
+          className="primary-btn"
+          to="/shop"
+        >
+          CONTINUE SHOPPING ↗
+        </Link>
       </section>
     );
   }
 
-
-  // ======================================================
-  // PAYMENT PENDING VERIFICATION
-  // ======================================================
+  /*
+   * PAYMENT PENDING
+   */
   if (
     paymentStatus ===
     "pending_verification"
   ) {
     return (
-      <section className="page checkout-page">
-        <div className="checkout-card">
+      <section className="page section success-page">
+        <span className="payment-pending-icon">
+          ✓
+        </span>
 
-          <h1>
-            PAYMENT
-            <br />
-            <em>SUBMITTED.</em>
-          </h1>
+        <p className="red-kicker">
+          PAYMENT SUBMITTED
+        </p>
 
-          <p>
-            Your payment has been submitted
-            and is waiting for verification.
-          </p>
+        <h2>
+          PAYMENT
+          <br />
+          <em>PENDING.</em>
+        </h2>
 
-          <div className="order-number">
+        <p className="payment-copy">
+          Your payment has been submitted and
+          is waiting for verification.
+        </p>
+
+        <div className="payment-receipt-mini">
+          <div>
             <span>ORDER NUMBER</span>
             <strong>{orderId}</strong>
           </div>
 
-          <p>
-            Once your payment is verified,
-            this page will update automatically.
-          </p>
-
-          <p>
-            Please keep your order number
-            for reference.
-          </p>
-
+          <div>
+            <span>AMOUNT</span>
+            <strong>
+              {formatPrice(total)}
+            </strong>
+          </div>
         </div>
+
+        <p className="payment-copy">
+          Once your payment is verified, this
+          page will update automatically.
+        </p>
+
+        <p className="payment-copy">
+          Please keep your order number for
+          reference.
+        </p>
       </section>
     );
   }
 
-
-  // ======================================================
-  // AWAITING PAYMENT
-  // ======================================================
+  /*
+   * PAYMENT DETAILS
+   */
   if (
     paymentStatus ===
     "awaiting_payment"
   ) {
     return (
-      <section className="page checkout-page">
-        <div className="checkout-card">
+      <section className="page section">
+        <div className="payment-layout">
 
-          <h1>
-            COMPLETE YOUR
-            <br />
-            <em>PAYMENT.</em>
-          </h1>
+          <div>
+            <p className="red-kicker">
+              ORDER CREATED
+            </p>
 
-          <p>
-            Your order has been created.
-            Please transfer the exact amount
-            below.
-          </p>
+            <h2>
+              COMPLETE YOUR
+              <br />
+              <em>PAYMENT.</em>
+            </h2>
 
-          <div className="order-number">
-            <span>ORDER NUMBER</span>
-            <strong>{orderId}</strong>
-          </div>
+            <p className="payment-copy">
+              Your order has been created.
+              Please transfer the exact amount
+              below using the account details
+              provided.
+            </p>
 
-          <div className="payment-box">
-
-            <h3>
-              TRANSFER DETAILS
-            </h3>
-
-            <div className="payment-row">
-              <span>Bank</span>
-              <strong>
-                {PAYMENT_ACCOUNT.bank}
-              </strong>
+            <div className="order-number">
+              <span>
+                ORDER NUMBER
+              </span>
+              <br />
+              {orderId}
             </div>
 
-            <div className="payment-row">
-              <span>Account Name</span>
-              <strong>
-                {PAYMENT_ACCOUNT.accountName}
-              </strong>
-            </div>
-
-            <div className="payment-row">
-              <span>Account Number</span>
+            <div className="bank-card">
 
               <div>
+                <span>BANK</span>
+
                 <strong>
+                  {PAYMENT_ACCOUNT.bank}
+                </strong>
+              </div>
+
+              <div>
+                <span>
+                  ACCOUNT NAME
+                </span>
+
+                <strong>
+                  {PAYMENT_ACCOUNT.accountName}
+                </strong>
+              </div>
+
+              <div>
+                <span>
+                  ACCOUNT NUMBER
+                </span>
+
+                <strong className="account-number">
                   {PAYMENT_ACCOUNT.accountNumber}
                 </strong>
-
-                <button
-                  type="button"
-                  onClick={copyAccountNumber}
-                  className="copy-btn"
-                >
-                  {copied
-                    ? "COPIED"
-                    : "COPY"}
-                </button>
               </div>
+
+              <button
+                type="button"
+                className="copy-account"
+                onClick={
+                  copyAccountNumber
+                }
+              >
+                {copied
+                  ? "ACCOUNT NUMBER COPIED"
+                  : "COPY ACCOUNT NUMBER"}
+              </button>
+
             </div>
 
-            <div className="payment-row total-row">
-              <span>Amount</span>
+            <div className="payment-amount">
+              <span>
+                AMOUNT TO PAY
+              </span>
+
               <strong>
                 {formatPrice(total)}
               </strong>
             </div>
 
-          </div>
+            <div className="payment-method-note">
+              <span>
+                PAYMENT METHOD
+              </span>
 
-          <button
-            type="button"
-            className="primary-btn"
-            onClick={
-              markPaymentSubmitted
-            }
-          >
-            I HAVE MADE THE PAYMENT
-          </button>
+              <strong>
+                BANK TRANSFER
+              </strong>
+
+              <p>
+                Transfer the exact amount to
+                the account above. After making
+                your payment, click the button
+                below to submit your payment for
+                verification.
+              </p>
+            </div>
+
+            <br />
+
+            <button
+              type="button"
+              className="primary-btn"
+              onClick={
+                markPaymentSubmitted
+              }
+            >
+              I HAVE MADE THE PAYMENT ↗
+            </button>
+
+          </div>
 
         </div>
       </section>
     );
   }
 
-
-  // ======================================================
-  // CHECKOUT FORM
-  // ======================================================
+  /*
+   * CHECKOUT FORM
+   */
   return (
     <section className="page checkout-page">
 
@@ -446,7 +473,6 @@ export default function Checkout() {
           className="checkout-form"
           onSubmit={submitOrder}
         >
-
           <h2>
             DELIVERY DETAILS
           </h2>
@@ -540,9 +566,7 @@ export default function Checkout() {
               ? "CREATING ORDER..."
               : "CONTINUE TO PAYMENT ↗"}
           </button>
-
         </form>
-
 
         <aside className="checkout-summary">
 
@@ -553,7 +577,7 @@ export default function Checkout() {
           {cart.map((item) => (
             <div
               key={`${item.productId}-${item.color}-${item.size}`}
-              className="summary-item"
+              className="checkout-item"
             >
               <div>
                 <strong>
@@ -575,16 +599,16 @@ export default function Checkout() {
                 </span>
               </div>
 
-              <strong>
+              <b>
                 {formatPrice(
                   item.price *
-                  item.quantity
+                    item.quantity
                 )}
-              </strong>
+              </b>
             </div>
           ))}
 
-          <div className="summary-total">
+          <div className="checkout-total">
             <span>
               TOTAL
             </span>
