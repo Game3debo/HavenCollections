@@ -1,7 +1,14 @@
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
+const webpush = require("web-push");
 
+
+webpush.setVapidDetails(
+  process.env.VAPID_EMAIL,
+  process.env.VAPID_PUBLIC_KEY,
+  process.env.VAPID_PRIVATE_KEY
+);
 const authRoutes = require("./routes/authRoutes");
 const productRoutes = require("./routes/productRoutes");
 const orderRoutes = require("./routes/orderRoutes");
@@ -9,13 +16,21 @@ const orderRoutes = require("./routes/orderRoutes");
 const app = express();
 
 const allowedOrigins = [
-  "https://haven-admin-five.vercel.app",
   "https://haven-collections-ejhd.vercel.app",
+  "https://haven-admin-five.vercel.app",
 ];
 
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+      // Allow requests without an origin
+      // and requests from our two deployed frontends.
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })

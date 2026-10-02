@@ -152,6 +152,83 @@ const response = await fetch(
     alert(error.message || "Something went wrong.");
   }
 };
+useEffect(() => {
+  const setupPushNotifications = async () => {
+    try {
+      if (!("serviceWorker" in navigator)) {
+        console.log("Service workers are not supported.");
+        return;
+      }
+
+      if (!("PushManager" in window)) {
+        console.log("Push notifications are not supported.");
+        return;
+      }
+
+      const permission = await Notification.requestPermission();
+
+      if (permission !== "granted") {
+        console.log("Notification permission was not granted.");
+        return;
+      }
+
+      const registration = await navigator.serviceWorker.ready;
+
+      const existingSubscription =
+        await registration.pushManager.getSubscription();
+
+      if (existingSubscription) {
+        console.log("Push subscription already exists.");
+        return;
+      }
+
+      const publicKey = "BGUOCam6XF5-kP3SMZJ9qQKt92sr_T3mGeLFnIkRVXvF0S6SUsWu02bXLj3KHX33Rs1wgnMO8g_7Xa0OjplDK5E";
+      const urlBase64ToUint8Array = (base64String) => {
+  const padding = "=".repeat(
+    (4 - (base64String.length % 4)) % 4
+  );
+
+  const base64 = (base64String + padding)
+    .replace(/-/g, "+")
+    .replace(/_/g, "/");
+
+  const rawData = window.atob(base64);
+
+  return Uint8Array.from(
+    [...rawData].map((char) => char.charCodeAt(0))
+  );
+};
+
+      const subscription =
+        await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(publicKey),
+        });
+
+      const token = localStorage.getItem("havenAdminToken");
+
+      await fetch(
+        "https://havenbackend-eight.vercel.app/api/orders/push-subscription",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            subscription,
+          }),
+        }
+      );
+
+      console.log("Push notifications enabled.");
+    } catch (error) {
+      console.error("PUSH NOTIFICATION SETUP ERROR:", error);
+    }
+  };
+
+  setupPushNotifications();
+}, []);
 
   useEffect(() => {
     fetchOrders();

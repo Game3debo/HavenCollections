@@ -1,4 +1,5 @@
 const pool = require("../config/db");
+const webpush = require("web-push");
 
 
 // ======================================================
@@ -94,6 +95,50 @@ const createOrder = async (req, res) => {
     }
 
     await client.query("COMMIT");
+
+    // Send notification to all subscribed admin devices
+try {
+  const subscriptionsResult = await pool.query(
+    "SELECT id, subscription FROM push_subscriptions"
+  );
+
+  const notificationPayload = JSON.stringify({
+    title: "Haven - New Order 🔔",
+    body: `New order #${order.id} has been placed by ${customer_name}.`,
+  });
+
+  for (const row of subscriptionsResult.rows) {
+    try {
+      await webpush.sendNotification(
+        row.subscription,
+        notificationPayload
+      );
+    } catch (pushError) {
+      console.error(
+        "PUSH NOTIFICATION ERROR:",
+        pushError
+      );
+
+      // Remove expired/invalid subscriptions
+      if (
+        pushError.statusCode === 404 ||
+        pushError.statusCode === 410
+      ) {
+        await pool.query(
+          "DELETE FROM push_subscriptions WHERE id = $1",
+          [row.id]
+        );
+      }
+    }
+  }
+}
+
+catch (notificationError) {
+  console.error(
+    "NOTIFICATION ERROR:",
+    notificationError
+  );
+}
 
     return res.status(201).json({
       message: "Order created successfully",

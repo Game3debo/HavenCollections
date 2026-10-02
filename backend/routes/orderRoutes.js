@@ -40,5 +40,34 @@ router.patch(
   protectAdmin,
   updateOrderStatus
 );
+router.post("/push-subscription", protectAdmin, async (req, res) => {
+  try {
+    const { subscription } = req.body;
+
+    if (!subscription) {
+      return res.status(400).json({
+        message: "Push subscription is required",
+      });
+    }
+
+    await pool.query(
+      `
+      INSERT INTO push_subscriptions (subscription)
+      VALUES ($1)
+      `,
+      [JSON.stringify(subscription)]
+    );
+
+    res.status(201).json({
+      message: "Push subscription saved successfully",
+    });
+  } catch (error) {
+    console.error("SAVE PUSH SUBSCRIPTION ERROR:", error);
+
+    res.status(500).json({
+      message: "Failed to save push subscription",
+    });
+  }
+});
 
 module.exports = router;
