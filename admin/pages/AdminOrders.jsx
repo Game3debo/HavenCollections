@@ -173,37 +173,42 @@ useEffect(() => {
       }
 
       const registration = await navigator.serviceWorker.ready;
+let subscription =
+  await registration.pushManager.getSubscription();
 
-      const existingSubscription =
-        await registration.pushManager.getSubscription();
+if (!subscription) {
+  const publicKey =
+    "BGUOCam6XF5-kP3SMZJ9qQKt92sr_T3mGeLFnIkRVXvF0S6SUsWu02bXLj3KHX33Rs1wgnMO8g_7Xa0OjplDK5E";
 
-      if (existingSubscription) {
-        console.log("Push subscription already exists.");
-        return;
-      }
+  const urlBase64ToUint8Array = (base64String) => {
+    const padding = "=".repeat(
+      (4 - (base64String.length % 4)) % 4
+    );
 
-      const publicKey = "BGUOCam6XF5-kP3SMZJ9qQKt92sr_T3mGeLFnIkRVXvF0S6SUsWu02bXLj3KHX33Rs1wgnMO8g_7Xa0OjplDK5E";
-      const urlBase64ToUint8Array = (base64String) => {
-  const padding = "=".repeat(
-    (4 - (base64String.length % 4)) % 4
+    const base64 = (base64String + padding)
+      .replace(/-/g, "+")
+      .replace(/_/g, "/");
+
+    const rawData = window.atob(base64);
+
+    return Uint8Array.from(
+      [...rawData].map((char) => char.charCodeAt(0))
+    );
+  };
+
+  subscription =
+    await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey:
+        urlBase64ToUint8Array(publicKey),
+    });
+
+  console.log("New push subscription created.");
+} else {
+  console.log(
+    "Push subscription already exists. Sending it to backend..."
   );
-
-  const base64 = (base64String + padding)
-    .replace(/-/g, "+")
-    .replace(/_/g, "/");
-
-  const rawData = window.atob(base64);
-
-  return Uint8Array.from(
-    [...rawData].map((char) => char.charCodeAt(0))
-  );
-};
-
-      const subscription =
-        await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(publicKey),
-        });
+}
 
       const token = localStorage.getItem("havenAdminToken");
 
